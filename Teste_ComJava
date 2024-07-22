@@ -50,9 +50,18 @@ pipeline {
         
           stage('Validar BPs') {
             steps {
-                sh "java -jar /var/jenkins_home/jarCustomizados/ValidarCodigoBP.jar /var/jenkins_home/jarCustomizados/criterios.properties b2b_projeto_a_test/Export.xml"
-                
-                
+                  script {
+                    def output = sh(script: "java -jar /var/jenkins_home/jarCustomizados/ValidarCodigoBP.jar /var/jenkins_home/jarCustomizados/criterios.properties b2b_projeto_a_test/Export.xml", returnStdout: true)
+                     
+                    def jsonObj = new JsonSlurper().parseText(output)
+                    echo "Resumo critico: $jsonObj.resumo.critico"
+                    
+                    
+                if (jsonObj.resumo.critico){
+		             //error "Codigo Invalido"
+		             unstable "TESTE"
+	        	}
+	          }
             }
         }
         
