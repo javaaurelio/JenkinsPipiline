@@ -1,0 +1,50 @@
+pipeline {
+    agent any
+    parameters {
+        gitParameter name: 'Versao',
+                     type: 'PT_TAG',
+                     defaultValue: 'master',
+                     sortMode: 'DESCENDING_SMART'
+    }
+    stages {
+        stage('Example') {
+            steps {
+			    checkout([$class: 'GitSCM',
+				branches: [[name: "${params.Versao}"]],
+				doGenerateSubmoduleConfigurations: false,
+				extensions: [],
+				gitTool: 'Default',
+				submoduleCfg: [],
+				userRemoteConfigs: [[url: 'https://github.com/javaaurelio/b2b_projeto_a_test.git']]])
+            }
+        }
+		stage('Copiando arquivos') {
+            steps {
+			    echo 'Building..'
+                sshagent(['login_fabio']) {
+                    sh "scp Export.xml root@172.17.0.1:/tmp/Export.txt  "
+					
+                }
+            }            
+        }
+        stage('Publicando') {
+            steps {
+                sshagent(['login_fabio']) {
+                    script {
+                        
+                        try {
+                           sh("ssh -o StrictHostKeyChecking=no -l root 172.17.0.1 '/opt/IBM/SterlingIntegrator/tp_import/import.sh -input /tmp/Export.xml -report /tmp/SAIDA.err > &1 | echo  \$? | exit 0 '")
+                        } catch (err) {
+                            print('ERRO: ' + err.toString() )
+                            currentBuild.result = "FAILURE"
+                        } finally {
+                            stage('stg-final') {
+                                
+                            }
+                        }
+                    }
+                }
+            }            
+        }
+    }
+}
