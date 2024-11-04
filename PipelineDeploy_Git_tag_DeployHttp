@@ -1,0 +1,43 @@
+pipeline {
+    agent any
+    parameters {
+        gitParameter name: 'Versao',
+                     type: 'PT_TAG',
+                     defaultValue: 'master',
+                     sortMode: 'DESCENDING_SMART'
+    }
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout([$class: 'GitSCM',
+                          branches: [[name: "${params.Versao}"]],
+                          doGenerateSubmoduleConfigurations: false,
+                          extensions: [],
+                          gitTool: 'Default',
+                          submoduleCfg: [],
+                          userRemoteConfigs: [[url: 'https://github.com/javaaurelio/b2b_projeto_a_test.git']]
+                        ])
+            }
+        }
+    
+    stage('Publicar') {
+            steps {
+			script{
+			  cmd = """
+				  curl -s -i -X POST -H "Content-Type: multipart/form-data" -w '{http_code}' -F "data=@${env.WORKSPACE}/Export.xml" 172.17.0.1:5033/publicar
+			  """
+			  status_code = sh(script: cmd, returnStdout: true).trim()
+			  // must call trim() to remove the default trailing newline
+						  
+			  echo "HTTP response status code: ${status_code}"
+			  
+			  if ((status_code.contains('HTTP/1.1 200'))) {
+				   	echo "Publicacao realizada com Sucesso"
+				} else {
+				    error('Erro na Publicacao')
+				}
+			}
+		  }
+    }
+    }
+}
